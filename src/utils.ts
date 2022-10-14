@@ -29,7 +29,7 @@ export function getFileExtension(filePath: string) {
 }
 
 export function parseErrorMessage(message: string) {
-  return console.warn(chalk.red(message));
+  return console.error(chalk.red(message));
 }
 
 export function addKeyConnectors(arr: string[]) {

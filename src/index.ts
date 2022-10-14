@@ -82,14 +82,14 @@ function printHelp() {
       if(!isXLSX(outputFileType)) {
         if(!outputFilePath.includes('.')) {
           outputFilePath = outputFilePath.endsWith('.') ? `${outputFilePath}xlsx` : `${outputFilePath}.xlsx`
-          console.info(chalk.yellow(`Adding '.xlsx' to output file`));
+          console.log(chalk.yellow(`Adding '.xlsx' to output file`));
         } else {
           parseErrorMessage('Wrong output file format (must be \'.xlsx\')');
           process.exit(1);
         }
       }
 
-      console.info(chalk.yellow(`\nProcessing! \nConverting JSON to XLSX for the file${inputFilesParam.length > 1 ? 's' : ''}:`));
+      console.log(chalk.yellow(`\nProcessing! \nConverting JSON to XLSX for the file${inputFilesParam.length > 1 ? 's' : ''}:`));
       console.log(chalk.magentaBright(inputFilesParam.join('\n')))
     } else if(isXLSX(sourceFileType)) {
       if(inputFilesParam.length > 1) {
@@ -98,12 +98,12 @@ function printHelp() {
       }
 
       if(langsParam) {
-        console.info(chalk.gray(`-l option has no effect when converting from XLSX -> JSON`));
+        console.log(chalk.gray(`-l option has no effect when converting from XLSX -> JSON`));
       }
       if(specialsParam) {
-        console.info(chalk.gray(`-s option has no effect when converting from XLSX -> JSON`));
+        console.log(chalk.gray(`-s option has no effect when converting from XLSX -> JSON`));
       }
-      console.info(chalk.yellow(`\nProcessing! \nConverting XLSX to JSON for the file:`));
+      console.log(chalk.yellow(`\nProcessing! \nConverting XLSX to JSON for the file:`));
       console.log(chalk.magentaBright(inputFilesParam.join('\n')))
     } else {
       parseErrorMessage('File type is not supported. Either use JSON or XLSX file to convert.');
