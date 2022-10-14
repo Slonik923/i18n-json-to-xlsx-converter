@@ -73,7 +73,6 @@ function printHelp() {
 
     const sourceFileType = getSourceFileType(inputFilesParam[0]);
     const outputFileType = getSourceFileType(outputFilePath);
-    console.log('output file type:', outputFileType);
     if(isJSON(sourceFileType)) {
       if(inputFilesParam.length > 1) {
         checkForMultipleJSONFileErrors(inputFilesParam, process);
@@ -82,7 +81,7 @@ function printHelp() {
       if(!isXLSX(outputFileType)) {
         if(!outputFilePath.includes('.')) {
           outputFilePath = outputFilePath.endsWith('.') ? `${outputFilePath}xlsx` : `${outputFilePath}.xlsx`
-          console.log(chalk.yellow(`Adding '.xlsx' to output file`));
+          console.log(chalk.yellow(`\nAdding '.xlsx' to output file`));
         } else {
           parseErrorMessage('Wrong output file format (must be \'.xlsx\')');
           process.exit(1);
