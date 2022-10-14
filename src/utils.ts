@@ -1,17 +1,4 @@
-import * as path from "path";
 import chalk from "chalk";
-
-export function documentSavePath(filePath: string, outputFileName: string) {
-  let destinationPath = '';
-
-  if (filePath.includes('\\')) {
-    destinationPath = filePath.substring(0, filePath.lastIndexOf('\\'));
-  } else if (filePath.includes('/')) {
-    destinationPath = filePath.substring(0, filePath.lastIndexOf('/'));
-  }
-
-  return path.resolve(destinationPath, outputFileName);
-}
 
 export function getFileName(filePath: string) {
   if (filePath.includes('\\')) {
@@ -71,14 +58,4 @@ export function checkForMultipleJSONFileErrors(filePaths: string[], process: Nod
       process.exit(1);
     }
   }
-}
-
-export function isMultipleJSONFilePathsValid(filePath: string): boolean {
-  const multipleJSON = filePath.split(',');
-
-  return multipleJSON.length > 1 && multipleJSON.every((jsonFilePathName) => jsonFilePathName.includes('.json'));
-}
-
-export function getJSONFilePaths(filePath: string) {
-  return filePath.split(',').map((JSONFilePath) => JSONFilePath.trim());
 }
