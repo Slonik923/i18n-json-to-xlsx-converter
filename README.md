@@ -32,7 +32,7 @@ Install _i18n JSON to XLSX Converter_ with `npm`
 If you have installed _i18n JSON to XLSX Converter_ you can use it with the command
 
 ```bash
-   i18n-json-to-xlsx-converter --convert 'file path of the JSON or XLSX file'
+   i18n-json-to-xlsx-converter [options] files
 ```
 
 If you haven't installed _i18n JSON to XLSX Converter_ you can use it with the command
@@ -41,15 +41,28 @@ If you haven't installed _i18n JSON to XLSX Converter_ you can use it with the c
    npx i18n-json-to-xlsx-converter --convert 'file path of the JSON or XLSX file'
 ```
 
+where options are:
+- -s special strings which will be switched for keys (only for JSON -> XLSX)
+- -o output file name (JSON -> XLSX) / directory (XLSX -> JSON)
+- -t desired languages
+- -h prints this message
+
+and files are list of files for converting
 
 _i18n JSON to XLSX Converter_ examines and understands your XLSX files if it has multiple language value columns, then it creates one or multiple JSON files from that translation columns provided.
 
 ---
 
-If you want to convert multiple JSON files at once, use comma between each file paths provided
+Example converting multiple json file to XLSX file:
 
 ```bash
-   npx i18n-json-to-xlsx-converter --convert 'filePathOne.json, filePathTwo.json'
+   npx i18n-json-to-xlsx-converter -s _NEPRELOZENE_ -o translation.xlsx locales/en/email.json locales/en/error.json
+```
+
+Example converting XLSX file to jsons:
+
+```bash
+   npx i18n-json-to-xlsx-converter -o locales translations.xlsx
 ```
 
 ## Running Tests

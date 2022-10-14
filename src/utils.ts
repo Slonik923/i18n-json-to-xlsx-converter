@@ -1,138 +1,84 @@
-const path = require('path');
-const { red, yellow } = require('chalk');
+import * as path from "path";
+import chalk from "chalk";
 
-const error = console.error;
-const log = console.log;
-const info = console.info;
-const warn = console.warn;
-
-const documentSavePath = (filePath: string, outputFileName: string) => {
+export function documentSavePath(filePath: string, outputFileName: string) {
   let destinationPath = '';
 
   if (filePath.includes('\\')) {
-    destinationPath = filePath.substr(0, filePath.lastIndexOf('\\'));
+    destinationPath = filePath.substring(0, filePath.lastIndexOf('\\'));
   } else if (filePath.includes('/')) {
-    destinationPath = filePath.substr(0, filePath.lastIndexOf('/'));
+    destinationPath = filePath.substring(0, filePath.lastIndexOf('/'));
   }
 
   return path.resolve(destinationPath, outputFileName);
-};
+}
 
-const getFileName = (filePath: string) => {
+export function getFileName(filePath: string) {
   if (filePath.includes('\\')) {
-    return filePath.substr(filePath.lastIndexOf('\\') + 1, filePath.length - 1).split('.')[0];
+    const startIndex = filePath.lastIndexOf('\\') + 1
+    return filePath.substring(startIndex, startIndex + filePath.length - 1).split('.')[0];
   } else if (filePath.includes('/')) {
-    return filePath.substr(filePath.lastIndexOf('/') + 1, filePath.length - 1).split('.')[0];
+    const startIndex = filePath.lastIndexOf('/') + 1
+    return filePath.substring( startIndex, startIndex + filePath.length - 1).split('.')[0];
   }
 
   return filePath.split('.')[0];
-};
+}
 
-const isJSON = (sourceFileType: string) => sourceFileType === 'json';
+export const isJSON = (sourceFileType: string) => sourceFileType === 'json';
 
-const isXLSX = (sourceFileType: string) => sourceFileType === 'xlsx';
+export const isXLSX = (sourceFileType: string) => sourceFileType === 'xlsx';
 
-const getSourceFileType = (filePath: string) => {
-  return (filePath.split('.')[1] || '').toLowerCase();
-};
+export function getSourceFileType(filePath: string) {
+  const arr = filePath.split(".");      // Split the string using dot as separator
+  const lastVal = arr.pop();       // Get last element
+  return (lastVal || '').toLowerCase();
+}
 
-const getFileExtension = (filePath: string) => {
+export function getFileExtension(filePath: string) {
   const sourceFileType = (filePath.split('.')[1] || '').toLowerCase();
 
   return !isXLSX(sourceFileType) ? '.xlsx' : '.json';
-};
+}
 
-const parseErrorMessage = (message: string) => {
-  return warn(red(message));
-};
+export function parseErrorMessage(message: string) {
+  return console.warn(chalk.red(message));
+}
 
-const createProcessMessageByType = (filePath: string, sourceFileType: string, isMultipleJSONFilesValid: boolean = false) => {
-  return info(
-    yellow(
-      sourceFileType === 'xlsx'
-        ? `\nProcessing! \nConverting XLSX to JSON for the file \n${filePath}\n`
-        : `\nProcessing! \nConverting JSON to XLSX for the file${isMultipleJSONFilesValid ? 's' : ''} \n${filePath}\n`,
-    ),
-  );
-};
-
-const addKeyConnectors = (arr: string[]) => {
+export function addKeyConnectors(arr: string[]) {
   return arr.join('.');
-};
+}
 
-const writeByCheckingParent = (parentKey: string | null, key: string) => {
-  let writeKey = '';
+export function writeByCheckingParent(parentKey: string | null, key: string) {
+  let writeKey: string;
 
   parentKey !== null ? (writeKey = addKeyConnectors([parentKey, key])) : (writeKey = key);
 
   return writeKey;
-};
+}
 
-const createPathByCheckingSpaceCharacter = (path: string[] | string): string => {
-  if (path.length === 1) {
-    return path[0];
-  } else {
-    let concatenatedPath = '';
+export function checkForMultipleJSONFileErrors(filePaths: string[], process: NodeJS.Process) {
+  const isMultiplePathCorrect = filePaths.every((jsonFilePathName) => jsonFilePathName.includes('.json'));
 
-    for (const [index, pathPieceSeparatedWithSpace] of (path as string[]).entries()) {
-      if (index === 0) {
-        concatenatedPath += pathPieceSeparatedWithSpace;
-      } else {
-        concatenatedPath += ` ${pathPieceSeparatedWithSpace}`;
-      }
-    }
+  if (!isMultiplePathCorrect) {
+    const isOneJSONPath = filePaths.some((jsonFilePathName) => jsonFilePathName.includes('.json'));
 
-    return concatenatedPath;
-  }
-};
-
-const checkForMultipleJSONFileErrors = (filePath: string, process: NodeJS.Process) => {
-  const multipleJSON = filePath.split(',');
-
-  if (multipleJSON.length > 1) {
-    const isMultiplePathCorrect = multipleJSON.every((jsonFilePathName) => jsonFilePathName.includes('.json'));
-
-    if (!isMultiplePathCorrect) {
-      const isOneJSONPath = multipleJSON.some((jsonFilePathName) => jsonFilePathName.includes('.json'));
-
-      if (isOneJSONPath) {
-        error(red('One of the multiple path entries of the JSON file path is wrong.'));
-        process.exit(1);
-      } else if (!isOneJSONPath) {
-        error(red('Multiple file conversion only works for JSON files.'));
-        process.exit(1);
-      }
+    if (isOneJSONPath) {
+      console.error(chalk.red('One of the multiple path entries of the JSON file path is wrong.'));
+      process.exit(1);
+    } else if (!isOneJSONPath) {
+      console.error(chalk.red('Multiple file conversion only works for JSON files.'));
+      process.exit(1);
     }
   }
-};
+}
 
-const isMultipleJSONFilePathsValid = (filePath: string): boolean => {
+export function isMultipleJSONFilePathsValid(filePath: string): boolean {
   const multipleJSON = filePath.split(',');
 
   return multipleJSON.length > 1 && multipleJSON.every((jsonFilePathName) => jsonFilePathName.includes('.json'));
-};
+}
 
-const getJSONFilePaths = (filePath: string) => {
+export function getJSONFilePaths(filePath: string) {
   return filePath.split(',').map((JSONFilePath) => JSONFilePath.trim());
-};
-
-export default {
-  log,
-  warn,
-  info,
-  error,
-  documentSavePath,
-  getFileName,
-  getFileExtension,
-  isJSON,
-  isXLSX,
-  getSourceFileType,
-  parseErrorMessage,
-  createProcessMessageByType,
-  addKeyConnectors,
-  writeByCheckingParent,
-  createPathByCheckingSpaceCharacter,
-  isMultipleJSONFilePathsValid,
-  checkForMultipleJSONFileErrors,
-  getJSONFilePaths,
-};
+}

@@ -103,3 +103,7 @@ typings/
 .tern-port
 
 .idea
+node_modules
+dist
+
+*.iml

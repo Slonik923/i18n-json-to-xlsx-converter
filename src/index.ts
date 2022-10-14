@@ -1,95 +1,223 @@
 #!/usr/bin/env node
-const fs = require('fs-extra');
-const chalk = require('chalk');
-const readXLSXFile = require('read-excel-file/node');
-const Excel = require('exceljs');
-const unflatten = require('flat').unflatten;
-import utils from './utils';
+import Excel from 'exceljs';
+import flat from 'flat';
+const { unflatten } = flat;
+
+import parseArgs from 'minimist';
+import fs from "fs";
+import path from "path";
+import chalk from "chalk";
+import {
+  checkForMultipleJSONFileErrors,
+  getFileName,
+  getSourceFileType,
+  isJSON,
+  isXLSX,
+  parseErrorMessage,
+  writeByCheckingParent
+} from "./utils.js";
+
+function printHelp() {
+  console.log('Usage');
+  console.log('i18n-json-to-xlsx-converter [options] files');
+  console.log('where options are:');
+  console.log('-s\tspecial strings which will be switched for keys (only for JSON -> XLSX)');
+  console.log('-o\toutput file name (JSON -> XLSX) / directory (XLSX -> JSON)');
+  console.log('-l\tdesired languages');
+  console.log('-h\tprints this message');
+}
 
 (async () => {
   try {
-    const path = process.argv.slice(3);
-    const filePath = utils.createPathByCheckingSpaceCharacter(path);
+    const argv = parseArgs(process.argv.slice(2));
+    const inputFilesParam = argv['_'];
+    const specialsParm = argv.s;
+    const outputParam = argv.o;
+    const langsParam = argv.l;
 
-    if (!filePath || typeof filePath === 'boolean') {
-      utils.parseErrorMessage('No file path to convert is given. Specify the file path after the --convert parameter.');
+    if(argv.h) {
+      printHelp();
+
+      process.exit(0);
+    }
+
+    if(!inputFilesParam || inputFilesParam.length === 0) {
+      parseErrorMessage('No input files specified');
+      printHelp();
+
       process.exit(1);
     }
 
-    const sourceFileType = utils.getSourceFileType(filePath);
-    const isMultipleJSONFilePaths = utils.getJSONFilePaths(filePath).length > 1;
-    const isMultipleJSONFilePathsValid = utils.isMultipleJSONFilePathsValid(filePath);
+    let specialStrings: string[];
+    if(specialsParm) {
+      if(typeof specialsParm === 'string') {
+        specialStrings = [specialsParm];
+      } else if(Array.isArray(specialsParm) && typeof specialsParm[0] === 'string') {
+        specialStrings = specialsParm;
+      } else {
+        parseErrorMessage('Special string can only be strings');
+        process.exit(1);
+      }
+    }
 
-    if (utils.isJSON(sourceFileType) || utils.isXLSX(sourceFileType) || isMultipleJSONFilePathsValid) {
-      utils.createProcessMessageByType(filePath, sourceFileType, isMultipleJSONFilePathsValid && isMultipleJSONFilePaths);
+    let outputFilepath = path.join(inputFilesParam[0], './translations.xlsx');
+    if(outputParam) {
+      if(typeof outputParam !== 'string') {
+        parseErrorMessage('There can be just one output file');
+        process.exit(1);
+      }
+
+      outputFilepath = outputParam;
+    }
+
+    const sourceFileType = getSourceFileType(inputFilesParam[0]);
+    const outputFileType = getSourceFileType(outputFilepath);
+    if(isJSON(sourceFileType)) {
+      if(inputFilesParam.length > 1) {
+        checkForMultipleJSONFileErrors(inputFilesParam, process);
+      }
+
+      if(isJSON(outputFileType)) {
+        parseErrorMessage('Wrong output file format (must be \'.xlsx\'');
+        process.exit(1);
+      }
+
+      console.info(chalk.yellow(`\nProcessing! \nConverting JSON to XLSX for the file${inputFilesParam.length > 1 ? 's' : ''}:`));
+      console.log(chalk.magentaBright(inputFilesParam.join('\n')))
+    } else if(isXLSX(sourceFileType)) {
+      if(inputFilesParam.length > 1) {
+        parseErrorMessage('Only one XLSX file can be converted.');
+        process.exit(1);
+      }
+
+      if(outputParam && isXLSX(outputFileType)){
+        parseErrorMessage('Wrong output file format (must be \'.json\'');
+        process.exit(1);
+      }
+
+      if(langsParam) {
+        console.info(chalk.gray(`-l option has no effect when converting from XLSX -> JSON`));
+      }
+      if(specialsParm) {
+        console.info(chalk.gray(`-s option has no effect when converting from XLSX -> JSON`));
+      }
+      console.info(chalk.yellow(`\nProcessing! \nConverting XLSX to JSON for the file:`));
+      console.log(chalk.magentaBright(inputFilesParam.join('\n')))
     } else {
-      utils.checkForMultipleJSONFileErrors(filePath, process);
-
-      utils.parseErrorMessage('File type is not supported. Either use JSON or XLSX file to convert.');
+      parseErrorMessage('File type is not supported. Either use JSON or XLSX file to convert.');
       process.exit(1);
     }
 
-    if (utils.isXLSX(sourceFileType)) {
-      const readXlsx = () => {
-        return readXLSXFile(filePath).then((rows: string[][]) => {
-          const titleRow = rows[0];
-          const allLanguages: any = {};
-          const titles = [];
+    const languages = ['Key'];
+    if(!langsParam) {
+      languages.push('EN'); // EN is default language
+    } else {
+      languages.push(...langsParam);
+    }
 
-          for (const [idx, row] of titleRow.entries()) {
-            titles.push(row);
+    // TODO: formatting for top row (bold, center, bigger?)
 
-            if (idx > 0) {
-              allLanguages[row] = {};
+    // [SUGGESTION]: only add new translations - when you have translated all the strings, but you add new ones.
+
+    if (isXLSX(sourceFileType)) {
+      const filePath = inputFilesParam[0]
+
+      try {
+        const workbook = new Excel.Workbook();
+        await workbook.xlsx.readFile(filePath);
+        const worksheets = workbook.worksheets;
+
+        const wsLanguages: Map<string, boolean> = new Map();
+        // get languages for each worksheet
+        for( const ws of worksheets ) {
+          let blank = false;
+          let cellIndex = 2; // start at 1 and first is just 'Key'
+          const firstRow = ws.getRow(1);
+          while( !blank ) {
+            const val = firstRow.getCell(cellIndex).value as string;
+            if(val) {
+              wsLanguages.set(val, true);
+            } else {
+              blank = true;
             }
+            cellIndex += 1;
           }
+        }
 
-          for (let idx = 1; idx < rows.length; idx++) {
-            const row = rows[idx];
+        const languages = Array.from(wsLanguages.keys());
+        const languagesPathsMap = new Map<string, string>();
+        languages.forEach((l) => {
+          if(outputParam) {
+            languagesPathsMap.set(l, path.join(outputParam, l));
+          } else {
+            languagesPathsMap.set(l, path.join('./', l));
+          }
+        });
+        const languagesPaths = Array.from(languagesPathsMap.values());
+        console.log(chalk.yellow('Creating language directories:'));
+        console.log(chalk.magentaBright(languagesPaths.join('\n')));
 
-            for (let secondIdx = 1; secondIdx < row.length; secondIdx++) {
-              if (row[0]) {
-                allLanguages[titles[secondIdx]][row[0]] = row[secondIdx];
+        let promises: Promise<any>[] = languagesPaths.map((lang) => fs.promises.mkdir(lang, { recursive: true }));
+        await Promise.all(promises);
+
+        const langMap = new Map<string, Map<string, any>>();
+        worksheets.forEach((ws) => {
+          let blank = false;
+          languages.forEach((lang, langIndex) => {
+            const langJson: any = {};
+            let rowIndex = 2; // starts at 1 and first row are just languages
+
+            while( !blank ) {
+              const row = ws.getRow(rowIndex);
+              const key = row.getCell(1).value as string;
+              const value = row.getCell(langIndex + 2).value as string;
+
+              if(key && value) {
+                langJson[key] = value
+              } else {
+                blank = true;
               }
+
+              rowIndex += 1;
             }
-          }
 
-          return allLanguages;
+            const langMapEntry = langMap.get(lang);
+            if(langMapEntry) {
+              langMapEntry.set(ws.name, unflatten(langJson));
+            } else {
+              const map = new Map<string, any>();
+              map.set(ws.name, unflatten(langJson));
+              langMap.set(lang, map);
+            }
+          });
         });
-      };
 
-      readXlsx()
-        .then((allLanguages: any) => {
-          let outputFileName = '';
+        console.log(chalk.yellow(`Outputting files:`));
+        promises = [];
+        langMap.forEach((map, lang) => {
+          map.forEach((json, sheetName) => {
+            const filePath = languagesPathsMap.get(lang) ?? lang;
+            console.log(chalk.magentaBright(`${filePath}/${sheetName}.json`));
 
-          for (const languageTitle in allLanguages) {
-            outputFileName = `${languageTitle.trim().toLowerCase()}${utils.getFileExtension(filePath)}`;
-
-            const unflattenedLanguageObj = unflatten(allLanguages[languageTitle], { object: true });
-
-            fs.writeFileSync(utils.documentSavePath(filePath, outputFileName), JSON.stringify(unflattenedLanguageObj, null, 2), 'utf-8');
-
-            utils.log(chalk.yellow(`Output file name for ${languageTitle} is ${outputFileName}`));
-            utils.log(chalk.grey(`Location of the created file is`));
-            utils.log(chalk.magentaBright(`${utils.documentSavePath(filePath, outputFileName)}\n`));
-          }
-
-          utils.log(chalk.green(`File conversion is successful!`));
-        })
-        .catch((e: Error) => {
-          utils.error(chalk.red(`Error: ${e}`));
-
-          process.exit(1);
+            promises.push(fs.promises.writeFile(`${filePath}/${sheetName}.json`, JSON.stringify(json, null, 2)));
+          });
         });
+
+        await Promise.all(promises);
+      } catch(e) {
+        console.error(chalk.red(`Error: ${e}`));
+
+        process.exit(1);
+      }
     } else {
-      const JSONFiles = utils.getJSONFilePaths(filePath);
+      const workbook = new Excel.Workbook();
 
-      for (const JSONFile of JSONFiles!) {
+      for (const JSONFile of inputFilesParam!) {
+        const filename = getFileName(JSONFile);
         const sourceBuffer = await fs.promises.readFile(JSONFile);
         const sourceText = sourceBuffer.toString();
         const sourceData = JSON.parse(sourceText);
-        const workbook = new Excel.Workbook();
-        const worksheet = workbook.addWorksheet('Converted');
+        const worksheet = workbook.addWorksheet(filename);
         let rowCount = 1;
 
         const writeToXLSX = (key: string, value: string) => {
@@ -98,53 +226,49 @@ import utils from './utils';
           rows.getCell(1).value = key;
 
           // Check for null, "" of the values and assign semantic character for that
-          rows.getCell(2).value = (value || '-').toString();
+          rows.getCell(2).value = value ?? '-';
 
           rowCount += 1;
         };
 
-        writeToXLSX('Key', utils.getFileName(JSONFile).toUpperCase());
+        const rows = worksheet.getRow(rowCount);
+        languages.forEach((lang, i) => rows.getCell(i + 1).value = lang);
+        rowCount += 1;
 
         const parseAndWrite = (parentKey: string | null, targetObject: any) => {
           const keys = Object.keys(targetObject);
 
           for (const key of keys as string[]) {
-            const element: any = targetObject[key];
+            let element: any = targetObject[key];
+            if (specialStrings.includes(element)) {
+              element = key;
+            }
 
             if (typeof element === 'object' && element !== null) {
-              parseAndWrite(utils.writeByCheckingParent(parentKey, key), element);
+              parseAndWrite(writeByCheckingParent(parentKey, key), element);
             } else {
-              writeToXLSX(utils.writeByCheckingParent(parentKey, key), element);
+              writeToXLSX(writeByCheckingParent(parentKey, key), element);
             }
           }
         };
 
         parseAndWrite(null, sourceData);
 
-        worksheet.getColumn(1).width = 50;
-        worksheet.getColumn(2).width = 50;
+        languages.forEach((_, i) => worksheet.getColumn(i + 1).width = 50);
+      }
 
-        await workbook.xlsx
-          .writeFile(utils.documentSavePath(JSONFile, `${utils.getFileName(JSONFile)}.xlsx`))
-          .then(() => {
-            utils.log(chalk.yellow(`Output file name is ${utils.getFileName(JSONFile)}${utils.getFileExtension(JSONFile)}`));
-            utils.log(chalk.grey(`Location of the created file is`));
-            utils.log(
-              chalk.magentaBright(
-                `${utils.documentSavePath(JSONFile, `${utils.getFileName(JSONFile)}${utils.getFileExtension(JSONFile)}`)}\n`,
-              ),
-            );
-            utils.log(chalk.green(`File conversion is successful!\n`));
-          })
-          .catch((e: Error) => {
-            utils.error(chalk.red(`Error: ${e}`));
+      try{
+        await workbook.xlsx.writeFile(outputFilepath)
+        console.log(chalk.yellow(`Output file location: ${outputFilepath}`));
+        console.log(chalk.green(`File conversion is successful!\n`));
+      } catch(e) {
+        console.error(chalk.red(`Error: ${e}`));
 
-            process.exit(1);
-          });
+        process.exit(1);
       }
     }
   } catch (e) {
-    utils.error(chalk.red(`Error: ${e}`));
+    console.error(chalk.red(`Error: ${e}`));
 
     process.exit(1);
   }
