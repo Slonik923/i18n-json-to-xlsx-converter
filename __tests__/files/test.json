@@ -1,9 +1,0 @@
-{
-  "nestedObject": {
-    "nameOfTheArea": {
-      "title": "Title",
-      "subTitle": "Subtitle",
-      "context": "Context"
-    }
-  }
-}
