@@ -31,7 +31,7 @@ function printHelp() {
   try {
     const argv = parseArgs(process.argv.slice(2));
     const inputFilesParam = argv['_'];
-    const specialsParm = argv.s;
+    const specialsParam = argv.s;
     const outputParam = argv.o;
     const langsParam = argv.l;
 
@@ -49,13 +49,14 @@ function printHelp() {
     }
 
     let specialStrings: string[];
-    if(specialsParm) {
-      if(typeof specialsParm === 'string') {
-        specialStrings = [specialsParm];
-      } else if(Array.isArray(specialsParm) && typeof specialsParm[0] === 'string') {
-        specialStrings = specialsParm;
+    if(specialsParam) {
+      if(typeof specialsParam === 'string') {
+        specialStrings = [specialsParam];
+      } else if(Array.isArray(specialsParam) && typeof specialsParam[0] === 'string') {
+        specialStrings = specialsParam;
       } else {
         parseErrorMessage('Special string can only be strings');
+
         process.exit(1);
       }
     }
@@ -98,7 +99,7 @@ function printHelp() {
       if(langsParam) {
         console.info(chalk.gray(`-l option has no effect when converting from XLSX -> JSON`));
       }
-      if(specialsParm) {
+      if(specialsParam) {
         console.info(chalk.gray(`-s option has no effect when converting from XLSX -> JSON`));
       }
       console.info(chalk.yellow(`\nProcessing! \nConverting XLSX to JSON for the file:`));
@@ -240,7 +241,7 @@ function printHelp() {
 
           for (const key of keys as string[]) {
             let element: any = targetObject[key];
-            if (specialStrings.includes(element)) {
+            if (specialStrings && specialStrings.includes(element)) {
               element = key;
             }
 
@@ -261,14 +262,14 @@ function printHelp() {
         await workbook.xlsx.writeFile(outputFilepath)
         console.log(chalk.yellow(`Output file location: ${outputFilepath}`));
         console.log(chalk.green(`File conversion is successful!\n`));
-      } catch(e) {
-        console.error(chalk.red(`Error: ${e}`));
+      } catch(e: any) {
+        console.error(chalk.red(`Error: ${e}`), e.stack);
 
         process.exit(1);
       }
     }
-  } catch (e) {
-    console.error(chalk.red(`Error: ${e}`));
+  } catch (e: any) {
+    console.error(chalk.red(`Error: ${e}`), e.stack, e);
 
     process.exit(1);
   }
