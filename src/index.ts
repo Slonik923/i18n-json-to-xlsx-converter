@@ -61,26 +61,32 @@ function printHelp() {
       }
     }
 
-    let outputFilepath = path.join(inputFilesParam[0], './translations.xlsx');
+    let outputFilePath = path.join(inputFilesParam[0], './translations.xlsx');
     if(outputParam) {
       if(typeof outputParam !== 'string') {
         parseErrorMessage('There can be just one output file');
         process.exit(1);
       }
 
-      outputFilepath = outputParam;
+      outputFilePath = outputParam;
     }
 
     const sourceFileType = getSourceFileType(inputFilesParam[0]);
-    const outputFileType = getSourceFileType(outputFilepath);
+    const outputFileType = getSourceFileType(outputFilePath);
+    console.log('output file type:', outputFileType);
     if(isJSON(sourceFileType)) {
       if(inputFilesParam.length > 1) {
         checkForMultipleJSONFileErrors(inputFilesParam, process);
       }
 
-      if(isJSON(outputFileType)) {
-        parseErrorMessage('Wrong output file format (must be \'.xlsx\'');
-        process.exit(1);
+      if(!isXLSX(outputFileType)) {
+        if(!outputFilePath.includes('.')) {
+          outputFilePath = outputFilePath.endsWith('.') ? `${outputFilePath}xlsx` : `${outputFilePath}.xlsx`
+          console.info(chalk.yellow(`Adding '.xlsx' to output file`));
+        } else {
+          parseErrorMessage('Wrong output file format (must be \'.xlsx\')');
+          process.exit(1);
+        }
       }
 
       console.info(chalk.yellow(`\nProcessing! \nConverting JSON to XLSX for the file${inputFilesParam.length > 1 ? 's' : ''}:`));
@@ -88,11 +94,6 @@ function printHelp() {
     } else if(isXLSX(sourceFileType)) {
       if(inputFilesParam.length > 1) {
         parseErrorMessage('Only one XLSX file can be converted.');
-        process.exit(1);
-      }
-
-      if(outputParam && isXLSX(outputFileType)){
-        parseErrorMessage('Wrong output file format (must be \'.json\'');
         process.exit(1);
       }
 
@@ -259,8 +260,8 @@ function printHelp() {
       }
 
       try{
-        await workbook.xlsx.writeFile(outputFilepath)
-        console.log(chalk.yellow(`Output file location: ${outputFilepath}`));
+        await workbook.xlsx.writeFile(outputFilePath)
+        console.log(chalk.yellow(`Output file location: ${outputFilePath}`));
         console.log(chalk.green(`File conversion is successful!\n`));
       } catch(e: any) {
         console.error(chalk.red(`Error: ${e}`), e.stack);
